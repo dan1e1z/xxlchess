@@ -1,0 +1,16 @@
+{
+  "layout": "src/test/java/XXLChess/levelTest/castlingTest.txt",
+  "time_controls": {
+    "cpu": {
+      "seconds": 180,
+      "increment": 2
+    },
+    "player": {
+      "seconds": 180,
+      "increment": 2
+    }
+  },
+  "piece_movement_speed": 6,
+  "player_colour": "white",
+  "max_movement_time": 1
+}

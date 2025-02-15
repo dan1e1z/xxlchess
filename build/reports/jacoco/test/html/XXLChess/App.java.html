@@ -1,0 +1,1298 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>App.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">xxlchess_scaffold</a> &gt; <a href="index.source.html" class="el_package">XXLChess</a> &gt; <span class="el_source">App.java</span></div><h1>App.java</h1><pre class="source lang-java linenums">package XXLChess;                    
+
+//import org.reflections.Reflections;
+//import org.reflections.scanners.Scanners;
+import processing.core.PApplet;
+import processing.core.PImage;
+import processing.data.JSONObject;
+import processing.data.JSONArray;
+import processing.core.PFont;
+import processing.event.MouseEvent;
+import processing.core.PGraphics;
+import processing.core.PConstants;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.io.*;
+import java.util.*;
+
+/**
+ * 
+ * This class represents the main application class.
+ * It extends the PApplet class, 
+ * which provides basic functionality for drawing and 
+ * interacting with the user.
+ * 
+ */
+public class App extends PApplet{
+
+    /**
+     * size of sprite
+     */
+    public static final int SPRITESIZE = 480;
+
+    /**
+     * cell size, size of each chess square
+     */
+    public static final int CELLSIZE = 48;
+
+    /**
+     * sidebar size, where message and timer is shown
+     */
+    public static final int SIDEBAR = 120;
+
+    /**
+     * board width size 
+     */
+    public static final int BOARD_WIDTH = 14;
+
+    /**
+     * wdith of game screen
+     */
+<span class="fc" id="L52">    public static int WIDTH = CELLSIZE*BOARD_WIDTH+SIDEBAR;</span>
+
+    /**
+     * height of game screen
+     */
+<span class="fc" id="L57">    public static int HEIGHT = BOARD_WIDTH*CELLSIZE;</span>
+
+    /**
+     * fps of game
+     */
+    public static final int FPS = 60;
+	
+    /**
+     * configPath, path to json which will be read for game configuration.
+     */
+    public String configPath;
+
+    /**
+     * Black ArrayList
+     */
+<span class="fc" id="L72">    protected ArrayList&lt;Pieces&gt; cpuArray = new ArrayList&lt;Pieces&gt;();</span>
+
+    /**
+     * White ArrayList
+     */
+<span class="fc" id="L77">    protected ArrayList&lt;Pieces&gt; playerArray = new ArrayList&lt;Pieces&gt;();</span>
+
+    /**
+     * loading app
+     */
+<span class="fc" id="L82">    public App() {</span>
+<span class="fc" id="L83">        this.configPath = &quot;config.json&quot;;</span>
+<span class="fc" id="L84">    }</span>
+
+    /**
+     * for testing different cofig.json files
+     * @param configPath path to config.json file
+     */
+<span class="fc" id="L90">    public App(String configPath) {</span>
+<span class="fc" id="L91">        this.configPath = configPath;</span>
+<span class="fc" id="L92">    }</span>
+
+    // /**
+    //  * Switch player colour to black piece
+    //  * @param board char representation of the chess board 
+    //  * @return board char representation of the chess board 
+    //  */
+    // public static char[][] switchToBlack(char[][] board){
+
+    //     int rows = board.length;
+    //     int cols = board[0].length;
+
+    //     for (int i = 0; i &lt; rows / 2; i++) {
+    //         char[] temp = board[i];
+    //         board[i] = board[rows - i - 1];
+    //         board[rows - i - 1] = temp;
+    //     }
+    //     return board;
+    // }
+
+    /**
+     * Initialise the setting of the window size.
+    */
+    public void settings() {
+<span class="fc" id="L116">        size(WIDTH, HEIGHT);</span>
+<span class="fc" id="L117">    }</span>
+
+    /**
+     * create an array to represent the board
+     */
+<span class="fc" id="L122">    public static char[][] board = new char[14][14];</span>
+
+    /**
+     * movement speed of pieces, from config file
+     */
+    static double speed;
+
+    /**
+     * maximum time taken for piece animation, from config file
+     */
+    static double maxTime;
+
+    /*
+     * sidebar playerTimer object
+     */
+    Sidebar playerTimer;
+
+    /**
+     * sidebar cpuTimer object
+     */
+    Sidebar cpuTimer;
+
+    /**
+     * sidebar text object
+     */
+    Sidebar text;
+
+    /**
+     * player king is in check 
+     */
+<span class="fc" id="L152">    boolean playerChecked = false;</span>
+
+    /**
+     * check if castling can occur 
+     */
+<span class="fc" id="L157">    boolean canCastle = true;</span>
+
+    /**
+     * castling animation 
+     */
+<span class="fc" id="L162">    boolean castleAnimation = false;</span>
+
+    /**
+     * player Colour
+     */
+    String playerColour;
+
+    /**
+     * cpu first move
+     */
+<span class="fc" id="L172">    boolean cpuFirstMove = false;</span>
+
+
+    /**
+     * Load all resources such as images. Initialise the elements such as the player, enemies and map elements.
+    */
+    public void setup() {
+<span class="fc" id="L179">        frameRate(FPS);</span>
+        // PApplet Board = new Board();
+
+
+        // Load images during setup
+
+
+		// load config
+<span class="fc" id="L187">        JSONObject conf = loadJSONObject(new File(this.configPath));</span>
+
+<span class="fc" id="L189">        String layout = conf.getString(&quot;layout&quot;);</span>
+
+<span class="fc" id="L191">        JSONObject timeControls = conf.getJSONObject(&quot;time_controls&quot;);</span>
+<span class="fc" id="L192">        JSONObject player = timeControls.getJSONObject(&quot;player&quot;);</span>
+<span class="fc" id="L193">        JSONObject cpu = timeControls.getJSONObject(&quot;cpu&quot;);</span>
+
+        // playerTime 
+
+<span class="fc" id="L197">        int playerTime = player.getInt(&quot;seconds&quot;);</span>
+<span class="fc" id="L198">        int playerIncrement = player.getInt(&quot;increment&quot;);</span>
+
+<span class="fc" id="L200">        playerTimer = new Sidebar(playerTime, playerIncrement);</span>
+
+        // cpuTime 
+
+<span class="fc" id="L204">        int cpuTime = cpu.getInt(&quot;seconds&quot;);</span>
+<span class="fc" id="L205">        int cpuIncrement = cpu.getInt(&quot;increment&quot;);</span>
+
+<span class="fc" id="L207">        cpuTimer = new Sidebar(cpuTime, cpuIncrement);</span>
+
+
+
+        // speed config
+<span class="fc" id="L212">        speed = conf.getDouble(&quot;piece_movement_speed&quot;);</span>
+
+        // max time config
+<span class="fc" id="L215">        maxTime = conf.getDouble(&quot;max_movement_time&quot;);</span>
+
+        // set speed and max time
+<span class="fc" id="L218">        Pieces.setSpeedAndMaxTime(speed, maxTime);</span>
+
+        // reads txt layout file
+        try {
+<span class="fc" id="L222">            File file = new File(layout);</span>
+<span class="fc" id="L223">            Scanner scan = new Scanner(file);</span>
+<span class="fc" id="L224">            int j = 0;</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">            while (scan.hasNextLine()) {</span>
+<span class="fc" id="L226">              String line = scan.nextLine();</span>
+<span class="fc" id="L227">              char[] charArray = line.toCharArray(); </span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">              for (int i = 0; i &lt; charArray.length; i++) {</span>
+<span class="fc" id="L229">                char temp = charArray[i]; // add each character to the ArrayList</span>
+<span class="fc" id="L230">                board[j][i] = temp;</span>
+              }
+<span class="fc" id="L232">              j++;</span>
+<span class="fc" id="L233">            }</span>
+<span class="fc" id="L234">            scan.close();</span>
+        
+<span class="nc" id="L236">        } catch (FileNotFoundException e) {</span>
+<span class="nc" id="L237">            System.out.println(&quot;An error occurred.&quot;);</span>
+<span class="nc" id="L238">            e.printStackTrace();</span>
+<span class="fc" id="L239">        }</span>
+
+<span class="fc" id="L241">        String playerColour = conf.getString(&quot;player_colour&quot;);</span>
+
+        // check if selected piece colour is black 
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        if (playerColour.equals(&quot;black&quot;)) {</span>
+            // board = switchToBlack(board);
+<span class="fc" id="L246">	        cpuFirstMove = true;</span>
+        }
+        
+        
+        // load in all piece images
+<span class="fc" id="L251">        PImage bPawn = loadImage(&quot;src/main/resources/XXLChess/b-pawn.png&quot;);</span>
+<span class="fc" id="L252">        PImage wPawn = loadImage(&quot;src/main/resources/XXLChess/w-pawn.png&quot;);</span>
+
+<span class="fc" id="L254">        PImage bRook = loadImage(&quot;src/main/resources/XXLChess/b-rook.png&quot;);</span>
+<span class="fc" id="L255">        PImage wRook = loadImage(&quot;src/main/resources/XXLChess/w-rook.png&quot;);</span>
+
+<span class="fc" id="L257">        PImage bKnight = loadImage(&quot;src/main/resources/XXLChess/b-knight.png&quot;);</span>
+<span class="fc" id="L258">        PImage wKnight = loadImage(&quot;src/main/resources/XXLChess/w-knight.png&quot;);</span>
+
+<span class="fc" id="L260">        PImage bBishop = loadImage(&quot;src/main/resources/XXLChess/b-bishop.png&quot;);</span>
+<span class="fc" id="L261">        PImage wBishop = loadImage(&quot;src/main/resources/XXLChess/w-bishop.png&quot;);</span>
+
+<span class="fc" id="L263">        PImage bArchbishop = loadImage(&quot;src/main/resources/XXLChess/b-archbishop.png&quot;);</span>
+<span class="fc" id="L264">        PImage wArchbishop = loadImage(&quot;src/main/resources/XXLChess/w-archbishop.png&quot;);</span>
+
+<span class="fc" id="L266">        PImage bCamel = loadImage(&quot;src/main/resources/XXLChess/b-camel.png&quot;);</span>
+<span class="fc" id="L267">        PImage wCamel = loadImage(&quot;src/main/resources/XXLChess/w-camel.png&quot;);</span>
+
+<span class="fc" id="L269">        PImage bGeneral = loadImage(&quot;src/main/resources/XXLChess/b-knight-king.png&quot;);</span>
+<span class="fc" id="L270">        PImage wGeneral = loadImage(&quot;src/main/resources/XXLChess/w-knight-king.png&quot;);</span>
+
+<span class="fc" id="L272">        PImage bAmazon = loadImage(&quot;src/main/resources/XXLChess/b-amazon.png&quot;);</span>
+<span class="fc" id="L273">        PImage wAmazon = loadImage(&quot;src/main/resources/XXLChess/w-amazon.png&quot;);</span>
+
+<span class="fc" id="L275">        PImage bKing = loadImage(&quot;src/main/resources/XXLChess/b-king.png&quot;);</span>
+<span class="fc" id="L276">        PImage wKing = loadImage(&quot;src/main/resources/XXLChess/w-king.png&quot;);</span>
+
+<span class="fc" id="L278">        PImage bChancellor = loadImage(&quot;src/main/resources/XXLChess/b-chancellor.png&quot;);</span>
+<span class="fc" id="L279">        PImage wChancellor = loadImage(&quot;src/main/resources/XXLChess/w-chancellor.png&quot;);</span>
+
+<span class="fc" id="L281">        PImage bQueen = loadImage(&quot;src/main/resources/XXLChess/b-queen.png&quot;);</span>
+<span class="fc" id="L282">        PImage wQueen = loadImage(&quot;src/main/resources/XXLChess/w-queen.png&quot;);</span>
+
+        // turn off rectangle borders
+<span class="fc" id="L285">        noStroke();</span>
+
+        // loop through each row and column
+<span class="fc bfc" id="L288" title="All 2 branches covered.">        for (int row = 0; row &lt; 14; row++) {</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            for (int col = 0; col &lt; 14; col++) {</span>
+            // calculate the x and y positions of the square
+<span class="fc" id="L291">                int x = col * CELLSIZE;</span>
+<span class="fc" id="L292">                int y = row * CELLSIZE;</span>
+
+                // draw the square with the appropriate color
+<span class="fc bfc" id="L295" title="All 2 branches covered.">                if ((row + col) % 2 == 0) {</span>
+<span class="fc" id="L296">                    fill(237,216,179,255);</span>
+                } else {
+<span class="fc" id="L298">                    fill(175,135,97,255);</span>
+                }
+
+                // fills in corrosponding colour into created rectange 
+<span class="fc" id="L302">                rect(x, y, CELLSIZE, CELLSIZE);</span>
+<span class="fc" id="L303">                char piece = board[row][col];</span>
+
+<span class="fc bfc" id="L305" title="All 4 branches covered.">                if (board[row][col] != ' ' &amp;&amp; playerColour.equals(&quot;white&quot;)) {</span>
+
+                    // creates loaded piece object for every piece in level.txt file
+<span class="pc bpc" id="L308" title="3 of 23 branches missed.">                    switch(piece) {</span>
+                        case 'P':
+<span class="fc" id="L310">                            cpuArray.add(new Pawn(x, y, &quot;pawn&quot;, 'b', 1.00, bPawn, playerColour));</span>
+<span class="fc" id="L311">                            break;</span>
+
+                        case 'p':
+<span class="fc" id="L314">                            playerArray.add(new Pawn(x, y, &quot;pawn&quot;, 'w', 1.00, wPawn, playerColour));</span>
+<span class="fc" id="L315">                            break;</span>
+
+                        case 'R':
+<span class="fc" id="L318">                            cpuArray.add(new Rook(x, y, &quot;rook&quot;, 'b', 5.25, bRook, playerColour));</span>
+<span class="fc" id="L319">                            break;</span>
+                            
+                        case 'r':
+<span class="fc" id="L322">                            playerArray.add(new Rook(x, y, &quot;rook&quot;, 'w', 5.25, wRook, playerColour));</span>
+<span class="fc" id="L323">                            break;</span>
+                        
+                        case 'N':
+<span class="fc" id="L326">                            cpuArray.add(new Knight(x, y, &quot;knight&quot;, 'b', 2, bKnight, playerColour));</span>
+<span class="fc" id="L327">                            break;</span>
+
+                        case 'n':
+<span class="fc" id="L330">                            playerArray.add(new Knight(x, y, &quot;knight&quot;, 'w', 2, wKnight, playerColour));</span>
+<span class="fc" id="L331">                            break;</span>
+                        
+                        case 'B':
+<span class="fc" id="L334">                            cpuArray.add(new Bishop(x, y, &quot;bishop&quot;, 'b', 3.625, bBishop, playerColour));</span>
+<span class="fc" id="L335">                            break;</span>
+
+                        case 'b':
+<span class="fc" id="L338">                            playerArray.add(new Bishop(x, y, &quot;bishop&quot;, 'w', 3.625, wBishop, playerColour));</span>
+<span class="fc" id="L339">                            break;</span>
+
+                        case 'H':
+<span class="fc" id="L342">                            cpuArray.add(new Archbishop(x, y, &quot;archbishop&quot;, 'b', 7.5, bArchbishop, playerColour));</span>
+<span class="fc" id="L343">                            break;</span>
+
+                        case 'h':
+<span class="fc" id="L346">                            playerArray.add(new Archbishop(x, y, &quot;archbishop&quot;, 'w', 7.5, wArchbishop, playerColour));</span>
+<span class="fc" id="L347">                            break;</span>
+
+                        case 'C':
+<span class="fc" id="L350">                            cpuArray.add(new Camel(x, y, &quot;camel&quot;, 'b', 2, bCamel, playerColour));</span>
+<span class="fc" id="L351">                            break;</span>
+
+                        case 'c':
+<span class="fc" id="L354">                            playerArray.add(new Camel(x, y, &quot;camel&quot;, '2', 2, wCamel, playerColour));</span>
+<span class="fc" id="L355">                            break;</span>
+                        
+                        case 'G':
+<span class="fc" id="L358">                            cpuArray.add(new General(x, y, &quot;general&quot;, 'b', 5, bGeneral, playerColour));</span>
+<span class="fc" id="L359">                            break;</span>
+
+                        case 'g':
+<span class="nc" id="L362">                            playerArray.add(new General(x, y, &quot;general&quot;, 'w', 5, wGeneral, playerColour));</span>
+<span class="nc" id="L363">                            break;</span>
+
+                        case 'A':
+<span class="fc" id="L366">                            cpuArray.add(new Amazon(x, y, &quot;amazon&quot;, 'b', 12, bAmazon, playerColour));</span>
+<span class="fc" id="L367">                            break;</span>
+
+                        case 'a':
+<span class="nc" id="L370">                            playerArray.add(new Amazon(x, y, &quot;amazon&quot;, 'w', 12, wAmazon, playerColour));</span>
+<span class="nc" id="L371">                            break;</span>
+
+                        case 'K':
+<span class="fc" id="L374">                            cpuArray.add(new King(x, y, &quot;king&quot;, 'b', 100, bKing, playerColour));</span>
+<span class="fc" id="L375">                            break;</span>
+                        case 'k':
+<span class="fc" id="L377">                            playerArray.add(new King(x, y, &quot;king&quot;, 'w', 100, wKing, playerColour));</span>
+<span class="fc" id="L378">                            break;</span>
+
+                        case 'E':
+<span class="fc" id="L381">                            cpuArray.add(new Chancellor(x, y, &quot;chancellor&quot;, 'b', 8.5, bChancellor, playerColour));</span>
+<span class="fc" id="L382">                            break;</span>
+
+                        case 'e':
+<span class="fc" id="L385">                            playerArray.add(new Chancellor(x, y, &quot;chancellor&quot;, 'w', 8.5, wChancellor, playerColour));</span>
+<span class="fc" id="L386">                            break;</span>
+                        case 'Q':
+<span class="fc" id="L388">                            cpuArray.add(new Queen(x, y, &quot;queen&quot;, 'b', 9.5, bQueen, playerColour));</span>
+<span class="fc" id="L389">                            break;</span>
+                        
+                        case 'q':
+<span class="nc" id="L392">                            playerArray.add(new Queen(x, y, &quot;queen&quot;, 'w', 9.5, wQueen, playerColour));</span>
+                            break;
+                    }
+                }
+
+<span class="fc bfc" id="L397" title="All 4 branches covered.">                if (board[row][col] != ' ' &amp;&amp; playerColour.equals(&quot;black&quot;)) {</span>
+
+                    // creates loaded piece object for every piece in level.txt file
+<span class="pc bpc" id="L400" title="5 of 23 branches missed.">                    switch(piece) {</span>
+                        case 'p':
+<span class="fc" id="L402">                            cpuArray.add(new Pawn(x, y, &quot;pawn&quot;, 'b', 1.00, bPawn, playerColour));</span>
+<span class="fc" id="L403">                            break;</span>
+
+                        case 'P':
+<span class="fc" id="L406">                            playerArray.add(new Pawn(x, y, &quot;pawn&quot;, 'w', 1.00, wPawn, playerColour));</span>
+<span class="fc" id="L407">                            break;</span>
+
+                        case 'r':
+<span class="fc" id="L410">                            cpuArray.add(new Rook(x, y, &quot;rook&quot;, 'b', 5.25, bRook, playerColour));</span>
+<span class="fc" id="L411">                            break;</span>
+                            
+                        case 'R':
+<span class="fc" id="L414">                            playerArray.add(new Rook(x, y, &quot;rook&quot;, 'w', 5.25, wRook, playerColour));</span>
+<span class="fc" id="L415">                            break;</span>
+                        
+                        case 'n':
+<span class="fc" id="L418">                            cpuArray.add(new Knight(x, y, &quot;knight&quot;, 'b', 2, bKnight, playerColour));</span>
+<span class="fc" id="L419">                            break;</span>
+
+                        case 'N':
+<span class="fc" id="L422">                            playerArray.add(new Knight(x, y, &quot;knight&quot;, 'w', 2, wKnight, playerColour));</span>
+<span class="fc" id="L423">                            break;</span>
+                        
+                        case 'b':
+<span class="fc" id="L426">                            cpuArray.add(new Bishop(x, y, &quot;bishop&quot;, 'b', 3.625, bBishop, playerColour));</span>
+<span class="fc" id="L427">                            break;</span>
+
+                        case 'B':
+<span class="fc" id="L430">                            playerArray.add(new Bishop(x, y, &quot;bishop&quot;, 'w', 3.625, wBishop, playerColour));</span>
+<span class="fc" id="L431">                            break;</span>
+
+                        case 'h':
+<span class="nc" id="L434">                            cpuArray.add(new Archbishop(x, y, &quot;archbishop&quot;, 'b', 7.5, bArchbishop, playerColour));</span>
+<span class="nc" id="L435">                            break;</span>
+
+                        case 'H':
+<span class="fc" id="L438">                            playerArray.add(new Archbishop(x, y, &quot;archbishop&quot;, 'w', 7.5, wArchbishop, playerColour));</span>
+<span class="fc" id="L439">                            break;</span>
+
+                        case 'c':
+<span class="nc" id="L442">                            cpuArray.add(new Camel(x, y, &quot;camel&quot;, 'b', 2, bCamel, playerColour));</span>
+<span class="nc" id="L443">                            break;</span>
+
+                        case 'C':
+<span class="fc" id="L446">                            playerArray.add(new Camel(x, y, &quot;camel&quot;, '2', 2, wCamel, playerColour));</span>
+<span class="fc" id="L447">                            break;</span>
+                        
+                        case 'g':
+<span class="nc" id="L450">                            cpuArray.add(new General(x, y, &quot;general&quot;, 'b', 5, bGeneral, playerColour));</span>
+<span class="nc" id="L451">                            break;</span>
+
+                        case 'G':
+<span class="fc" id="L454">                            playerArray.add(new General(x, y, &quot;general&quot;, 'w', 5, wGeneral, playerColour));</span>
+<span class="fc" id="L455">                            break;</span>
+
+                        case 'a':
+<span class="nc" id="L458">                            cpuArray.add(new Amazon(x, y, &quot;amazon&quot;, 'b', 12, bAmazon, playerColour));</span>
+<span class="nc" id="L459">                            break;</span>
+
+                        case 'A':
+<span class="fc" id="L462">                            playerArray.add(new Amazon(x, y, &quot;amazon&quot;, 'w', 12, wAmazon, playerColour));</span>
+<span class="fc" id="L463">                            break;</span>
+
+                        case 'k':
+<span class="fc" id="L466">                            cpuArray.add(new King(x, y, &quot;king&quot;, 'b', 100, bKing, playerColour));</span>
+<span class="fc" id="L467">                            break;</span>
+                        case 'K':
+<span class="fc" id="L469">                            playerArray.add(new King(x, y, &quot;king&quot;, 'w', 100, wKing, playerColour));</span>
+<span class="fc" id="L470">                            break;</span>
+
+                        case 'e':
+<span class="nc" id="L473">                            cpuArray.add(new Chancellor(x, y, &quot;chancellor&quot;, 'b', 8.5, bChancellor, playerColour));</span>
+<span class="nc" id="L474">                            break;</span>
+
+                        case 'E':
+<span class="fc" id="L477">                            playerArray.add(new Chancellor(x, y, &quot;chancellor&quot;, 'w', 8.5, wChancellor, playerColour));</span>
+<span class="fc" id="L478">                            break;</span>
+                        case 'q':
+<span class="fc" id="L480">                            cpuArray.add(new Queen(x, y, &quot;queen&quot;, 'b', 9.5, bQueen, playerColour));</span>
+<span class="fc" id="L481">                            break;</span>
+                        
+                        case 'Q':
+<span class="fc" id="L484">                            playerArray.add(new Queen(x, y, &quot;queen&quot;, 'w', 9.5, wQueen, playerColour));</span>
+                            break;
+                    }
+                }
+            }
+        }
+         // check if selected piece colour is black 
+<span class="fc bfc" id="L491" title="All 2 branches covered.">         if (playerColour.equals(&quot;black&quot;)) {</span>
+            // switch arraylists 
+<span class="fc" id="L493">            ArrayList&lt;Pieces&gt; temp = new ArrayList&lt;Pieces&gt;();</span>
+<span class="fc" id="L494">            temp = playerArray;</span>
+<span class="fc" id="L495">            playerArray = cpuArray;</span>
+<span class="fc" id="L496">            cpuArray = temp;</span>
+        }
+
+        // create time object 
+<span class="fc" id="L500">        text = new Sidebar(0, 0);</span>
+
+        // set cpu formatted string manually
+<span class="fc" id="L503">        cpuTimer.setFormattedTimeString();</span>
+
+        // set original king x-axis line for castling
+<span class="fc" id="L506">        Pieces.setKingXAxis(playerArray);</span>
+
+<span class="fc" id="L508">    }</span>
+       
+    /**
+     * Receive key pressed signal from the keyboard.
+    */
+    public void keyPressed(){
+
+<span class="pc bpc" id="L515" title="3 of 8 branches missed.">        if (key == 'e' &amp;&amp; ( !text.getWinner() &amp;&amp; (!playerTimer.getWinner() &amp;&amp; !cpuTimer.getWinner()))) {</span>
+            // Do something if the &quot;e&quot; key was pressed
+<span class="fc" id="L517">            text.resign(this);</span>
+            // System.out.println(&quot;player has resign&quot;);
+          }
+
+<span class="pc bpc" id="L521" title="5 of 8 branches missed.">          if (key == 'r' &amp;&amp; (text.getWinner() || playerTimer.getWinner() || cpuTimer.getWinner())) {</span>
+            // player king is in check 
+<span class="fc" id="L523">            playerChecked = false;</span>
+            // text.setWinner();
+<span class="fc" id="L525">            playerTimer.setWinner();</span>
+<span class="fc" id="L526">            cpuTimer.setWinner();</span>
+<span class="fc" id="L527">            playerArray.clear();</span>
+<span class="fc" id="L528">            cpuArray.clear();</span>
+<span class="fc" id="L529">            setup();</span>
+        }
+        
+<span class="fc" id="L532">    }</span>
+    
+    /**
+     * Receive key released signal from the keyboard.
+    */
+    public void keyReleased(){
+
+<span class="nc" id="L539">    }</span>
+
+    // create highlighted title object 
+<span class="fc" id="L542">    private Board highlight = new Board();</span>
+
+
+    // boolean tracts second mouse click for moving piece
+<span class="fc" id="L546">    private boolean movePiece = false;</span>
+
+    // all possible position moves - minus attack moves
+<span class="fc" id="L549">    private ArrayList&lt;int[]&gt; possiblePositionsArray = new ArrayList&lt;int[]&gt;();</span>
+
+    // all possible attack positions 
+<span class="fc" id="L552">    private ArrayList&lt;int[]&gt; possibleAttackPositionsArray = new ArrayList&lt;int[]&gt;();</span>
+
+    // clicked Piece, piece which is selected
+<span class="fc" id="L555">    private Pieces playerPiece = null;</span>
+
+    // boolean for a peice being moved
+<span class="fc" id="L558">    private boolean playerMoving = false;</span>
+
+    // cpuMoved
+<span class="fc" id="L561">    private boolean cpuMoving = false;</span>
+<span class="fc" id="L562">    private Pieces cpuPiece = null;</span>
+<span class="fc" id="L563">    private Pieces rook = null;</span>
+
+    // delay boolean for slowing check and highlight for cpu 
+    // private boolean delay = false;
+    
+
+
+
+    /**
+     * Recieves mouse press from player
+     * @param e MouseEvent from player
+     */
+    @Override
+    public void mousePressed(MouseEvent e) {
+
+<span class="fc" id="L578">        ArrayList&lt;int[]&gt; allBlackAttack = Pieces.getAllAttackPositions(cpuArray, playerArray);</span>
+        
+<span class="pc bpc" id="L580" title="5 of 14 branches missed.">        if ((playerPiece == null || playerPiece.getisAnimationFinsihed()) &amp;&amp; !cpuMoving &amp;&amp;  ( !text.getWinner() &amp;&amp; (!playerTimer.getWinner() &amp;&amp; !cpuTimer.getWinner())) &amp;&amp; !cpuFirstMove){</span>
+
+            // Mouse click:  x-coordinates, y-coordinates
+<span class="fc" id="L583">            int mouseX = e.getX();</span>
+<span class="fc" id="L584">            int mouseY = e.getY();</span>
+
+            // Mouse click: x-Array, y-Array
+<span class="fc" id="L587">            int mouseXArray = mouseX / CELLSIZE;</span>
+<span class="fc" id="L588">            int mouseYArray = mouseY / CELLSIZE;</span>
+
+            // checks if a player piece has been selected
+<span class="fc bfc" id="L591" title="All 2 branches covered.">            if (Board.checkClickedForPiece(mouseXArray, mouseYArray, playerArray)) {</span>
+
+                // System.out.println(&quot;clicked&quot;);
+<span class="fc" id="L594">                highlight.resetColour(this); // dont think i need </span>
+<span class="fc" id="L595">                movePiece = true;</span>
+                
+                //get Pieces object of clicked piece on board 
+<span class="fc" id="L598">                playerPiece = Pieces.getPiece(mouseXArray, mouseYArray, playerArray);</span>
+
+                // highlight green selected piece square
+<span class="fc" id="L601">                highlight.highlightSelectedPieces(this, playerPiece);</span>
+
+                // get clicked pieces possible moves 
+<span class="fc" id="L604">                possiblePositionsArray = playerPiece.getPossibleMoves(playerArray, cpuArray);</span>
+
+                // get clicked pieces possible attack moves
+<span class="fc" id="L607">                possibleAttackPositionsArray = playerPiece.getAttackingPositions(playerArray, cpuArray);</span>
+
+                // highlight both attack, a regular moves
+<span class="fc" id="L610">                highlight.highlightMoves(this, possiblePositionsArray, playerArray, cpuArray, possibleAttackPositionsArray, playerPiece);</span>
+
+            }
+
+            // check that player piece has been selected and either a empty square is selected or a possible attacked CPU piece
+            // check if mouse click is either on empty space OR clicked on black piece after white piece has been pressed
+<span class="pc bpc" id="L616" title="5 of 10 branches missed.">            else if ((!Board.checkClickedForPiece(mouseXArray, mouseYArray, playerArray) || Board.checkAttackingPosition(mouseXArray, mouseYArray, cpuArray)) &amp;&amp; movePiece &amp;&amp; playerPiece != null &amp;&amp; playerPiece.checkValidMove(possiblePositionsArray, playerArray, cpuArray, possibleAttackPositionsArray, mouseXArray, mouseYArray)) {</span>
+                      
+
+                
+<span class="fc" id="L620">                boolean castle = false;</span>
+                // check if king is castling 
+<span class="pc bpc" id="L622" title="1 of 2 branches missed.">                if (playerPiece.getType().equals(&quot;king&quot;)) {</span>
+<span class="fc" id="L623">                    double distance = Math.sqrt(Math.pow(mouseXArray - (playerPiece.getX() / 48), 2) + Math.pow(mouseYArray - playerPiece.getY() / 48, 2));</span>
+                    
+                    // castling occuring
+<span class="fc bfc" id="L626" title="All 2 branches covered.">                    if (distance &gt; 1) {</span>
+<span class="fc" id="L627">                        castle = true;</span>
+                    }
+                }
+
+<span class="pc bpc" id="L631" title="2 of 6 branches missed.">                if ((castle == true &amp;&amp; playerPiece.getCastle()) &amp;&amp; (playerPiece.getY() / 48 == mouseYArray)) { </span>
+<span class="fc" id="L632">                    castleAnimation = true;</span>
+                    // castle left side of king
+<span class="pc bpc" id="L634" title="1 of 2 branches missed.">                    if (playerPiece.getX() / 48 &gt; mouseXArray) {</span>
+<span class="nc" id="L635">                        rook = playerPiece.getLeftCastleRook(playerArray, cpuArray);</span>
+<span class="nc bnc" id="L636" title="All 2 branches missed.">                        if (rook != null) { rook.movePiece(this, new int[]{(mouseXArray + 1), mouseYArray});}</span>
+                    }
+
+                    // castle right side of king
+<span class="pc bpc" id="L640" title="1 of 2 branches missed.">                    if (playerPiece.getX() / 48 &lt; mouseXArray) {</span>
+<span class="fc" id="L641">                        rook = playerPiece.getRightCastleRook(playerArray, cpuArray);</span>
+<span class="pc bpc" id="L642" title="1 of 2 branches missed.">                        if (rook != null) { rook.movePiece(this, new int[]{(mouseXArray - 1), mouseYArray});}</span>
+                    }
+<span class="fc" id="L644">                    playerPiece.movePiece(this, new int[]{mouseXArray, mouseYArray});</span>
+                }
+<span class="fc" id="L646">                else { playerPiece.movePiece(this, new int[]{mouseXArray, mouseYArray}); }</span>
+                // playerPiece.movePiece(this, new int[]{mouseXArray, mouseYArray});
+<span class="fc" id="L648">                playerMoving = true;</span>
+
+                // check if king moved
+<span class="pc bpc" id="L651" title="1 of 2 branches missed.">                if (playerPiece.getType().equals(&quot;king&quot;)) {playerPiece.setCastle();} </span>
+                // check rook has moved
+<span class="pc bpc" id="L653" title="1 of 2 branches missed.">                if (playerPiece.getType().equals(&quot;rook&quot;)) {playerPiece.setCastle();}</span>
+                
+<span class="fc" id="L655">                text.setDefendKing();</span>
+<span class="fc" id="L656">            }</span>
+
+<span class="pc bpc" id="L658" title="7 of 12 branches missed.">            else if ((!Board.checkClickedForPiece(mouseXArray, mouseYArray, playerArray) || Board.checkAttackingPosition(mouseXArray, mouseYArray, cpuArray)) &amp;&amp; movePiece &amp;&amp; playerPiece != null &amp;&amp; !playerPiece.checkValidMove(possiblePositionsArray, playerArray, cpuArray, possibleAttackPositionsArray, mouseXArray, mouseYArray) &amp;&amp; Board.checkForKingCheck(allBlackAttack, playerArray, cpuArray)) {</span>
+<span class="fc" id="L659">                text.defendKing(this, playerArray, cpuArray);</span>
+            }
+        }
+<span class="fc" id="L662">    }</span>
+
+    
+
+    @Override
+    public void mouseDragged(MouseEvent e) {
+        
+<span class="nc" id="L669">    }</span>
+
+    /**
+     * checks for draws 
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     * @return boolean true or false
+     */
+    public boolean checkForDraw(ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray) {
+
+<span class="fc" id="L679">        ArrayList&lt;int[]&gt; pArray = new ArrayList&lt;int[]&gt;();</span>
+<span class="fc" id="L680">        ArrayList&lt;int[]&gt; cArray = new ArrayList&lt;int[]&gt;();</span>
+        
+        // get player king 
+<span class="fc bfc" id="L683" title="All 2 branches covered.">        for (Pieces p : playerArray) {     </span>
+<span class="fc" id="L684">            pArray.addAll(p.getPossibleMoves(playerArray, cpuArray)); </span>
+<span class="fc" id="L685">        }</span>
+
+        // get cpu king 
+<span class="fc bfc" id="L688" title="All 2 branches covered.">        for (Pieces c : cpuArray) {</span>
+<span class="fc" id="L689">            cArray.addAll(c.getPossibleMoves(cpuArray, playerArray));</span>
+<span class="fc" id="L690">        }</span>
+
+        // check player king possible moves 
+<span class="fc bfc" id="L693" title="All 2 branches covered.">        if (pArray.isEmpty()) {</span>
+<span class="fc" id="L694">            cpuTimer.displayOther(this, 48);</span>
+            // playerTimer.displayOther(this, 624);
+<span class="fc" id="L696">            text.drawWinner(this);</span>
+<span class="fc" id="L697">            return true;</span>
+        }
+
+        // check cpuking possible moves 
+<span class="pc bpc" id="L701" title="1 of 2 branches missed.">        if (cArray.isEmpty()) {</span>
+<span class="nc" id="L702">            text.drawWinner(this);</span>
+            // cpuTimer.displayOther(this, 48);
+<span class="nc" id="L704">            playerTimer.displayOther(this, 624);</span>
+<span class="nc" id="L705">            return true;</span>
+        }
+<span class="fc" id="L707">        return false;</span>
+    }
+    
+    /**
+     * Draw all elements in the game each frame, FPS at 60. 
+    */
+    public void draw() {
+
+<span class="fc" id="L715">        cpuTimer.displayOther(this, 48);</span>
+
+<span class="pc bpc" id="L717" title="2 of 6 branches missed.">        if ( !text.getWinner() &amp;&amp; (!playerTimer.getWinner() &amp;&amp; !cpuTimer.getWinner()))  {</span>
+            
+            // player's turn, Timer is on
+<span class="fc bfc" id="L720" title="All 6 branches covered.">            if (!cpuMoving &amp; !cpuFirstMove) {</span>
+<span class="fc" id="L721">                playerTimer.playerTimer(this);</span>
+<span class="fc" id="L722">                cpuTimer.displayOther(this, 48);</span>
+            }
+
+            // cpu's turn, Timer on
+<span class="fc bfc" id="L726" title="All 4 branches covered.">            if (!playerMoving &amp;&amp; cpuMoving) {</span>
+<span class="fc" id="L727">                cpuTimer.cpuTimer(this);</span>
+<span class="fc" id="L728">                playerTimer.displayOther(this, 624);</span>
+            }
+
+            // highlight checked king
+<span class="pc bpc" id="L732" title="1 of 4 branches missed.">            if (playerChecked &amp;&amp; text.getDefendKing()) {</span>
+<span class="fc" id="L733">                text.playerKingCheck(this, playerArray, cpuArray, playerPiece);</span>
+            }
+
+            // undergoing castle animation
+<span class="fc bfc" id="L737" title="All 2 branches covered.">            if (castleAnimation) {</span>
+<span class="fc" id="L738">                Board.resetBoardColours(this);</span>
+<span class="fc" id="L739">                rook.tick(this);</span>
+<span class="fc" id="L740">                rook.drawTick(this);</span>
+            }
+
+            // flickering castle animation
+<span class="fc bfc" id="L744" title="All 2 branches covered.">            if (!text.getDefendKing()) {</span>
+<span class="fc" id="L745">                text.defendKing(this, playerArray, cpuArray);</span>
+            }
+
+		// player is black 
+<span class="fc bfc" id="L749" title="All 2 branches covered.">		if (cpuFirstMove) {</span>
+			// cpu moving
+<span class="fc" id="L751">			cpuMoving = true;</span>
+<span class="fc" id="L752">			cpuFirstMove = false;</span>
+<span class="fc" id="L753">			cpuMovement(playerArray.get(0), playerArray, cpuArray, playerArray.get(0).getAttackingPositions(playerArray, cpuArray));</span>
+		}
+
+<span class="pc bpc" id="L756" title="1 of 4 branches missed.">            if (playerMoving &amp;&amp; playerPiece != null) {</span>
+                // check that animation isn't 
+<span class="fc bfc" id="L758" title="All 2 branches covered.">                if (!playerPiece.getisAnimationFinsihed()) {</span>
+<span class="fc" id="L759">                    Board.resetBoardColours(this);</span>
+<span class="fc" id="L760">                    playerPiece.tick(this);</span>
+<span class="fc" id="L761">                    playerPiece.drawTick(this);</span>
+                    
+                }
+<span class="fc bfc" id="L764" title="All 6 branches covered.">                if (playerPiece.getisAnimationFinsihed() &amp;&amp; (rook == null || rook.getisAnimationFinsihed())) {</span>
+                    // player checked king has moved
+<span class="fc" id="L766">                    castleAnimation = false;</span>
+<span class="fc" id="L767">                    playerChecked = false;</span>
+<span class="fc" id="L768">                    playerMoving = false;</span>
+<span class="fc" id="L769">                    playerTimer.addTimeIncrement();</span>
+<span class="fc" id="L770">                    playerTimer.setFormattedTimeString();</span>
+<span class="fc" id="L771">                    playerTimer.displayOther(this, 624);</span>
+
+<span class="fc" id="L773">                    Board.resetBoardColours(this);</span>
+<span class="fc" id="L774">                    cpuTimer.cpuTimer(this);</span>
+
+                    // check piece for promotion
+<span class="fc" id="L777">                    checkPromotion(playerPiece);</span>
+
+                    // check if move was a take
+                    // check if a possible attack move is valid and a cpu piece is selected
+<span class="pc bpc" id="L781" title="1 of 2 branches missed.">                    if (Board.checkAttackingPosition((playerPiece.getX() / 48), (playerPiece.getY() / 48), cpuArray)){</span>
+<span class="nc" id="L782">                        cpuArray = playerPiece.take(cpuArray);</span>
+                    }
+
+                    // cpu moving
+<span class="fc" id="L786">                    cpuMoving = true;</span>
+
+<span class="fc" id="L788">                    checkForDraw(playerArray, cpuArray);</span>
+
+                    // check if cpu king is in check
+                    // deal with check 
+<span class="pc bpc" id="L792" title="1 of 2 branches missed.">                    if (Board.checkForKingCheck(playerPiece.getAttackingPositions(playerArray, cpuArray), cpuArray, playerArray)) {</span>
+                        // System.out.println(&quot;CPU KING CHECK&quot;);
+                        // text.cpuKingCheck(this);
+<span class="nc" id="L795">                        Board.checkHighlight(this, cpuArray);</span>
+        
+<span class="nc" id="L797">                        cpuCheckAlgorithm(playerPiece, playerArray, cpuArray);</span>
+
+<span class="nc" id="L799">                        return;</span>
+                    }
+                    // CPU - AI 
+<span class="fc" id="L802">                    else { cpuMovement(playerPiece, playerArray, cpuArray, playerPiece.getAttackingPositions(playerArray, cpuArray));}</span>
+                }
+            }
+            // cpu draw functions
+<span class="pc bpc" id="L806" title="1 of 4 branches missed.">            if (cpuMoving &amp;&amp; cpuPiece != null) {</span>
+                // System.out.println(&quot;cpu moving and not null&quot;);
+<span class="pc bpc" id="L808" title="1 of 2 branches missed.">                if (!cpuPiece.getisAnimationFinsihed()) {</span>
+
+                    // draw the updated positions of a player pieces
+<span class="fc" id="L811">                    Board.resetBoardColours(this);</span>
+<span class="fc" id="L812">                    cpuPiece.tick(this);</span>
+<span class="fc" id="L813">                    cpuPiece.drawTick(this);</span>
+                }
+<span class="fc bfc" id="L815" title="All 2 branches covered.">                if (cpuPiece.getisAnimationFinsihed()) {</span>
+<span class="fc" id="L816">                    cpuTimer.addTimeIncrement();</span>
+<span class="fc" id="L817">                    playerTimer.playerTimer(this);</span>
+<span class="fc" id="L818">                    Board.resetBoardColours(this);</span>
+<span class="fc" id="L819">                    cpuPiece.moveHighlight(this);</span>
+<span class="fc" id="L820">                    cpuMoving = false;</span>
+
+                    // check piece for promotion
+<span class="fc" id="L823">                    checkPromotion(cpuPiece);</span>
+
+                    // check if move was a take
+                    // check if a possible attack move is valid and a cpu piece is selected
+<span class="fc bfc" id="L827" title="All 2 branches covered.">                    if (Board.checkAttackingPosition((cpuPiece.getX() / 48), (cpuPiece.getY() / 48), playerArray)){</span>
+                        // update if starting line - if rook on startline is taken
+<span class="fc" id="L829">                        cpuPiece.updateOriginalKingArray(playerArray);</span>
+<span class="fc" id="L830">                        playerArray = cpuPiece.take(playerArray);</span>
+                    }
+
+                    // check if white king is in check
+<span class="fc" id="L834">                    Check(playerArray, cpuArray); </span>
+
+                    // reset playerPiece - highlighting Piece in green, regardless of if king in check
+<span class="fc" id="L837">                    playerPiece = null;</span>
+                }
+            }
+        }
+         // draw the updated positions of a player pieces 
+<span class="fc bfc" id="L842" title="All 2 branches covered.">         for (Pieces p : playerArray) {</span>
+<span class="fc" id="L843">            p.draw(this);</span>
+<span class="fc" id="L844">        }</span>
+
+        // draw the updated positions of a CPU pieces 
+<span class="fc bfc" id="L847" title="All 2 branches covered.">        for (Pieces p : cpuArray) {</span>
+<span class="fc" id="L848">            p.draw(this);</span>
+<span class="fc" id="L849">        }</span>
+        
+<span class="fc" id="L851">    }</span>
+	
+	// Add any additional methods or attributes you want. Please put classes in different files.
+
+    /**
+     * main method which executes application
+     * @param args arguments
+     */
+    public static void main(String[] args) {
+<span class="nc" id="L860">        PApplet.main(&quot;XXLChess.App&quot;);</span>
+<span class="nc" id="L861">    }</span>
+
+
+    /**
+     * calcualtes designs to deal with cpu king check 
+     * and makes appropiate moves to deal with such.
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     * @param playerPiece clicked player piece
+     */
+    public void cpuCheckAlgorithm(Pieces playerPiece, ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray) {
+
+        // all of white defended pieces 
+<span class="fc" id="L874">        ArrayList&lt;int[]&gt; allWhiteDefended = Pieces.getAllDefendedPositions(cpuArray, playerArray);</span>
+
+        // all possible taking moves - too get out of check
+<span class="fc" id="L877">        ArrayList&lt;int[]&gt; taking = new ArrayList&lt;int[]&gt;();</span>
+
+        // check if it can attack, checking piece 
+<span class="fc" id="L880">        ArrayList&lt;int[]&gt; allBlackPieceAttack = Pieces.getAllAttackPositions(cpuArray, playerArray);</span>
+
+<span class="fc" id="L882">        int checkX = playerPiece.getX() / 48;</span>
+<span class="fc" id="L883">        int checkY = playerPiece.getY() / 48;</span>
+
+<span class="fc" id="L885">        ArrayList&lt;Pieces&gt; blackOutOfCheckAttack = new ArrayList&lt;Pieces&gt;();</span>
+        
+        // check if piece can be taken 
+<span class="fc bfc" id="L888" title="All 2 branches covered.">        for (int[] attack : allBlackPieceAttack) {</span>
+<span class="fc bfc" id="L889" title="All 2 branches covered.">            if (Board.checkAttackingPosition(attack[0], attack[1], playerArray)) {</span>
+    
+                // check black pieces for an attack to get out of check
+<span class="fc bfc" id="L892" title="All 2 branches covered.">                for (Pieces b : cpuArray) {</span>
+<span class="fc" id="L893">                    taking = b.getAttackingPositions(cpuArray, playerArray);</span>
+    
+<span class="fc bfc" id="L895" title="All 2 branches covered.">                    for (int[] a : taking) {</span>
+    
+<span class="fc bfc" id="L897" title="All 4 branches covered.">                        if (a[0] == checkX &amp;&amp; a[1] == checkY) {</span>
+<span class="fc" id="L898">                            blackOutOfCheckAttack.add(b);</span>
+                        }
+<span class="fc" id="L900">                    }</span>
+<span class="fc" id="L901">                }</span>
+            }
+<span class="fc" id="L903">        }</span>
+
+<span class="fc" id="L905">        ArrayList&lt;int[]&gt; possibleattacks = new ArrayList&lt;int[]&gt;();</span>
+
+        // loop through all possible out of check attacks
+<span class="fc bfc" id="L908" title="All 2 branches covered.">        for (Pieces Piece : blackOutOfCheckAttack) {</span>
+            // Pieces possible attacks
+<span class="fc" id="L910">            possibleattacks = Piece.getAttackingPositions(cpuArray, playerArray);</span>
+
+            // defended positions are removed from possible black moves, that put king in check
+<span class="fc" id="L913">            ArrayList&lt;int[]&gt; attackList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L914">            attackList.add(new int[] {checkX, checkY});</span>
+<span class="fc" id="L915">            ArrayList&lt;int[]&gt; removedAttack = Board.removeCommonPositions(attackList, allWhiteDefended);</span>
+            
+<span class="pc bpc" id="L917" title="2 of 4 branches missed.">            if (blackOutOfCheckAttack != null &amp;&amp; !removedAttack.isEmpty()) {</span>
+<span class="fc" id="L918">                cpuPiece = Piece;</span>
+<span class="fc" id="L919">                cpuPiece.movePiece(this, new int[]{(playerPiece.getX() / 48), (playerPiece.getY() / 48)});</span>
+<span class="fc" id="L920">                return;</span>
+            }
+<span class="nc" id="L922">        }</span>
+        // block check
+<span class="fc" id="L924">        MoveResult moveResult = Board.blockCheck(this, playerArray, cpuArray); </span>
+<span class="fc bfc" id="L925" title="All 2 branches covered.">        if (Board.blockCheck(this, playerArray, cpuArray) == null) {</span>
+            
+<span class="fc" id="L927">            Board.checkHighlight(this, cpuArray);</span>
+            // System.out.println(&quot;CHECKMATE!!!&quot;);
+            // System.out.println(&quot;PLAYER WINS&quot;);
+<span class="fc" id="L930">            text.playerCheckmateWinner(this);</span>
+<span class="fc" id="L931">            playerTimer.displayOther(this, 624);</span>
+<span class="fc" id="L932">            Board.highlightContributionPieces(this, playerArray, cpuArray);</span>
+<span class="fc" id="L933">            return;</span>
+        }
+        else {
+<span class="fc" id="L936">            cpuPiece = moveResult.getBlackPiece();</span>
+<span class="fc" id="L937">            int[] target = moveResult.getCaptureCoordinate();</span>
+<span class="fc" id="L938">            cpuPiece.movePiece(this, target);</span>
+<span class="fc" id="L939">            return;</span>
+        }
+        
+    }
+
+
+    /**
+     * calcualtes piece movement for a king which isn't in check 
+     * @param playerPiece clicked player piece
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     * @param possibleAttackPositionsArray a list storing all possible attack positions 
+     */
+    public void cpuMovement(Pieces playerPiece, ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray, ArrayList&lt;int[]&gt; possibleAttackPositionsArray) {
+        // all of white defended pieces 
+
+<span class="fc" id="L955">        ArrayList&lt;int[]&gt; allWhiteDefended = Pieces.getAllDefendedPositions(cpuArray, playerArray);</span>
+
+<span class="fc" id="L957">        boolean blackPieceBeingAttacked = false;</span>
+        int[] attackedPiecePosition;
+        // check if black pieces is being attacked 
+<span class="fc bfc" id="L960" title="All 2 branches covered.">        for (int[] pos : possibleAttackPositionsArray) {</span>
+
+<span class="fc bfc" id="L962" title="All 2 branches covered.">            if (Board.checkBlackPieceBlock(pos[0], pos[1], cpuArray)) {</span>
+<span class="fc" id="L963">                blackPieceBeingAttacked = true;</span>
+<span class="fc" id="L964">                attackedPiecePosition = pos;</span>
+            }
+<span class="fc" id="L966">        }</span>
+
+        // if cpu piece can take player piece wich isn't defended 
+
+        // get cpu piece which can take the just moved player piece 
+<span class="fc" id="L971">        cpuPiece = Pieces.getPieceWhichCanAttack(playerPiece, cpuArray, playerArray);</span>
+        // check if it defended
+<span class="fc bfc" id="L973" title="All 2 branches covered.">        if (!Pieces.getIsDefended(playerPiece, allWhiteDefended)) {</span>
+            
+<span class="pc bpc" id="L975" title="1 of 4 branches missed.">            if (playerPiece != null &amp;&amp; cpuPiece != null) {</span>
+                // take player piece that just moved - as it was left undefended
+<span class="fc" id="L977">                cpuPiece.movePiece(this, new int[]{(playerPiece.getX() / 48), (playerPiece.getY() / 48)});</span>
+<span class="fc" id="L978">                return;</span>
+            }
+
+        }
+
+<span class="fc" id="L983">        boolean movementRequired = false;</span>
+
+        // cpu piece is being attack, movement is required
+<span class="fc bfc" id="L986" title="All 2 branches covered.">        if (blackPieceBeingAttacked) {</span>
+
+<span class="fc" id="L988">            cpuPiece = Board.checkForHighestValueAttackedPiece(possibleAttackPositionsArray, cpuArray);</span>
+
+            // if value of both the attack and defender is similar don't need to move
+<span class="fc bfc" id="L991" title="All 2 branches covered.">            if (Pieces.compareAttackAndDefenderValues(playerPiece, cpuPiece)) {</span>
+<span class="fc" id="L992">                movementRequired = true;</span>
+            }
+
+            // attacked pieces possible moves
+<span class="fc" id="L996">            ArrayList&lt;int[]&gt; attackedPiecePossibleMoves = cpuPiece.getPossibleMoves(playerArray, cpuArray);</span>
+
+            // get all the defend postions for black 
+<span class="fc" id="L999">            ArrayList&lt;int[]&gt; allDefendPositions = Pieces.getAllDefendedPositions(playerArray, cpuArray);</span>
+
+            // get posible position out of the all defended position
+<span class="fc" id="L1002">            ArrayList&lt;int[]&gt; attackedPieceDefendedMoves = Pieces.getDefendedPossibleMoves(allDefendPositions, attackedPiecePossibleMoves); </span>
+
+            // get the most defended possible position
+<span class="fc" id="L1005">            int[] mostFrequentAttackPositions = getMoveFrequentPosition(attackedPieceDefendedMoves);</span>
+
+<span class="pc bpc" id="L1007" title="1 of 4 branches missed.">            if (mostFrequentAttackPositions != null &amp;&amp; movementRequired) {</span>
+                
+<span class="fc" id="L1009">                cpuPiece.movePiece(this, new int[]{mostFrequentAttackPositions[0], mostFrequentAttackPositions[1]});</span>
+<span class="fc" id="L1010">                return;</span>
+            }
+
+            // move to the most defended square   
+        }
+<span class="pc bpc" id="L1015" title="1 of 4 branches missed.">        if (!blackPieceBeingAttacked || !movementRequired) {</span>
+            
+<span class="fc" id="L1017">            int x = 0;</span>
+<span class="fc" id="L1018">            int y = 0;</span>
+
+            // check if attacking piece can be taken - black take white
+<span class="fc" id="L1021">            ArrayList&lt;int[]&gt; blackAttack = Pieces.getAllAttackPositions(cpuArray, playerArray);</span>
+
+<span class="fc bfc" id="L1023" title="All 2 branches covered.">            for (int[] attack : blackAttack) {</span>
+
+                // checks if a black piece can take a white piece
+<span class="fc bfc" id="L1026" title="All 2 branches covered.">                if (Board.checkAttackingPosition(attack[0], attack[1], playerArray)) {</span>
+<span class="fc" id="L1027">                    x = attack[0];</span>
+<span class="fc" id="L1028">                    y = attack[1];</span>
+<span class="fc" id="L1029">                    break;</span>
+                }
+<span class="fc" id="L1031">            }</span>
+
+            // gets piece that can be taken
+<span class="fc" id="L1034">            playerPiece = Pieces.getPiece(x, y, playerArray);</span>
+
+            // get all white defended positions
+<span class="fc" id="L1037">            ArrayList&lt;int[]&gt; allWhiteDefendedPositions = Pieces.getAllDefendedPositions(cpuArray, playerArray);</span>
+<span class="fc bfc" id="L1038" title="All 2 branches covered.">            if (playerPiece != null) {</span>
+                // get black piece that can take white piece
+<span class="fc" id="L1040">                cpuPiece = Pieces.getPieceWhichCanAttack(playerPiece, cpuArray, playerArray);</span>
+
+                // check if attacking piece is defended
+                // and blackPiece is not null - meaning that their is no black piece which can attack white piece.
+<span class="pc bpc" id="L1044" title="1 of 4 branches missed.">                if (!Pieces.getIsDefended(playerPiece, allWhiteDefendedPositions) &amp;&amp; cpuPiece != null) {</span>
+                    
+                    // black takes undefended piece
+<span class="fc" id="L1047">                    cpuPiece.movePiece(this, new int[]{(playerPiece.getX() / 48), (playerPiece.getY() / 48)});</span>
+<span class="fc" id="L1048">                    return;</span>
+                }
+            }
+
+            // develop high value pieces which can be developed
+<span class="fc" id="L1053">            String[] developingPieces = {&quot;knight&quot;, &quot;camel&quot;, &quot;bishop&quot;, &quot;guard&quot;, &quot;archbishop&quot;, &quot;amazon&quot;};</span>
+
+
+<span class="fc bfc" id="L1056" title="All 2 branches covered.">            for (String type : developingPieces) {</span>
+
+                // returns piece for which needs to be developed
+<span class="fc" id="L1059">                cpuPiece = Board.checkforDevelopment(type, playerArray, cpuArray, board);</span>
+                // System.out.println(&quot;developing move &quot;);
+
+<span class="fc bfc" id="L1062" title="All 2 branches covered.">                if (cpuPiece != null) {</span>
+
+<span class="fc" id="L1064">                    ArrayList&lt;int[]&gt; freePositions = Board.moveToFreePosition(cpuPiece, playerArray, cpuArray);</span>
+
+                    // get all the defend postions for black 
+<span class="fc" id="L1067">                    ArrayList&lt;int[]&gt; allDefendPositions = Pieces.getAllDefendedPositions(playerArray, cpuArray);</span>
+
+                    // get posible position out of the all defended position
+<span class="fc" id="L1070">                    ArrayList&lt;int[]&gt; PieceDefendedMoves = Pieces.getDefendedPossibleMoves(allDefendPositions, freePositions); </span>
+
+                    // get the most defended possible position
+<span class="fc" id="L1073">                    int[] mostFrequentPositions = getMoveFrequentPosition(PieceDefendedMoves);</span>
+
+<span class="fc" id="L1075">                    cpuPiece.movePiece(this, new int[]{mostFrequentPositions[0], mostFrequentPositions[1]});</span>
+                    // System.out.println(&quot;developing move &quot;);
+<span class="fc" id="L1077">                    return;</span>
+                }
+            }
+
+            // choose between random move or attack future move
+<span class="fc" id="L1082">            Random random = new Random();</span>
+<span class="fc" id="L1083">            int randomNumber = random.nextInt(2); // 0 or 1</span>
+<span class="fc bfc" id="L1084" title="All 2 branches covered.">            if (randomNumber == 0) {</span>
+
+                // check if it can attack higher value piece - via a undefended position
+
+                // get unsafe positions 
+<span class="fc" id="L1089">                ArrayList&lt;int[]&gt; allUnsafePositions = Pieces.getAllAttackPositions(playerArray, cpuArray);</span>
+
+                // get black piece which can attack a undefened white piece via a safe position
+
+                // ArrayList&lt;Pieces, int[]&gt; future = getFutureMove(playerArray, cpuArray, allUnsafePositions);
+<span class="fc" id="L1094">                MoveResult future = Pieces.getFutureMove(playerArray, cpuArray, allUnsafePositions);</span>
+
+<span class="fc" id="L1096">                cpuPiece = future.getBlackPiece();</span>
+<span class="fc" id="L1097">                int[] futureCoor = future.getCaptureCoordinate();</span>
+
+<span class="pc bpc" id="L1099" title="3 of 4 branches missed.">                if (cpuPiece != null &amp;&amp; futureCoor != null) {</span>
+<span class="nc" id="L1100">                    cpuPiece.movePiece(this, new int[]{futureCoor[0], futureCoor[1]});</span>
+<span class="nc" id="L1101">                    return;</span>
+                }
+            }
+
+        }
+        
+        // Consider draw scenario. it will never break out of while loop
+
+        // no pieces are under attack + all key pieces have been developed
+<span class="pc bpc" id="L1110" title="1 of 2 branches missed.">        if (!checkForDraw(playerArray, cpuArray)) {</span>
+<span class="fc" id="L1111">            Random random = new Random();</span>
+            while (true) {
+<span class="pc bpc" id="L1113" title="1 of 2 branches missed.">                if (cpuArray.isEmpty()) {</span>
+<span class="nc" id="L1114">                    continue;</span>
+                }
+<span class="fc" id="L1116">                int maxValue = cpuArray.size() - 1;</span>
+<span class="fc" id="L1117">                int randomNumber = random.nextInt((maxValue - 0) + 1);</span>
+
+<span class="fc" id="L1119">                cpuPiece = cpuArray.get(randomNumber);</span>
+<span class="fc bfc" id="L1120" title="All 2 branches covered.">                if (!cpuPiece.getPossibleMoves(cpuArray, playerArray).isEmpty()){</span>
+<span class="fc" id="L1121">                    break;</span>
+                }
+<span class="fc" id="L1123">            }</span>
+
+            // move random piece to random position 
+            while (true) {
+<span class="fc" id="L1127">                List&lt;int[]&gt; possibleMoves = cpuPiece.getPossibleMoves(cpuArray, playerArray);</span>
+<span class="pc bpc" id="L1128" title="1 of 2 branches missed.">                if (possibleMoves.isEmpty()) {</span>
+<span class="nc" id="L1129">                    continue;</span>
+                }
+<span class="fc" id="L1131">                int maxValue = possibleMoves.size() - 1;</span>
+<span class="pc bpc" id="L1132" title="1 of 2 branches missed.">                if (maxValue &lt; 0) {</span>
+<span class="nc" id="L1133">                    continue;</span>
+                }
+
+<span class="fc" id="L1136">                int randomNumber = random.nextInt(maxValue + 1);</span>
+<span class="fc" id="L1137">                int[] randomPosition = possibleMoves.get(randomNumber);</span>
+<span class="pc bpc" id="L1138" title="1 of 2 branches missed.">                if (!Board.checkPieceBlock(randomPosition[0], randomPosition[1], playerArray, cpuArray)){</span>
+<span class="fc" id="L1139">                    cpuPiece.movePiece(this, new int[]{randomPosition[0], randomPosition[1]});</span>
+<span class="fc" id="L1140">                    return;</span>
+                }
+<span class="nc" id="L1142">            }</span>
+        }
+<span class="nc" id="L1144">        else {cpuMoving = false; return;}</span>
+
+    }
+
+
+    /**
+     * Returns most frequent square out of possible positions
+     * @param positions all possible piece positions
+     * @return int[]
+     */
+    public int[] getMoveFrequentPosition(ArrayList&lt;int[]&gt; positions) {
+
+<span class="fc" id="L1156">        Map&lt;String, Integer&gt; freqMap = new HashMap&lt;String, Integer&gt;();</span>
+
+        // Count the frequency of each element
+<span class="fc bfc" id="L1159" title="All 2 branches covered.">        for (int[] pos : positions) {</span>
+<span class="fc" id="L1160">            String key = Arrays.toString(pos);</span>
+<span class="fc" id="L1161">            freqMap.put(key, freqMap.getOrDefault(key, 0) + 1);</span>
+<span class="fc" id="L1162">        }</span>
+
+        // Find the most frequent element
+<span class="fc" id="L1165">        int maxFreq = 0;</span>
+<span class="fc" id="L1166">        int[] mostFrequent = null;</span>
+<span class="fc bfc" id="L1167" title="All 2 branches covered.">        for (int[] pos : positions) {</span>
+<span class="fc" id="L1168">            String key = Arrays.toString(pos);</span>
+<span class="fc" id="L1169">            int freq = freqMap.get(key);</span>
+<span class="fc bfc" id="L1170" title="All 2 branches covered.">            if (freq &gt; maxFreq) {</span>
+<span class="fc" id="L1171">                maxFreq = freq;</span>
+<span class="fc" id="L1172">                mostFrequent = pos;</span>
+            }
+<span class="fc" id="L1174">        }</span>
+
+<span class="fc" id="L1176">        return mostFrequent;</span>
+    }
+
+
+    /**
+     * Updates chess piece sprite if pawn promotes to a queen
+     * @param piece piece object
+     */
+    public void checkPromotion(Pieces piece) {
+
+<span class="fc" id="L1186">        PImage bQueen = loadImage(&quot;src/main/resources/XXLChess/b-queen.png&quot;);</span>
+<span class="fc" id="L1187">        PImage wQueen = loadImage(&quot;src/main/resources/XXLChess/w-queen.png&quot;);</span>
+
+        // check if pawn can be promoted to a queen 
+<span class="pc bpc" id="L1190" title="3 of 6 branches missed.">        if (piece.getType().equals(&quot;pawn&quot;) &amp;&amp; piece.getColour() == 'w' &amp;&amp; piece.getY() / 48 == 6) {</span>
+<span class="nc" id="L1191">            piece.setType(&quot;queen&quot;);</span>
+<span class="nc" id="L1192">            piece.setSprite(wQueen);</span>
+        }
+<span class="pc bpc" id="L1194" title="2 of 6 branches missed.">        else if (piece.getType().equals(&quot;pawn&quot;) &amp;&amp; piece.getColour() == 'b' &amp;&amp; piece.getY() / 48 == 7) {</span>
+<span class="nc" id="L1195">            piece.setType(&quot;queen&quot;);</span>
+<span class="nc" id="L1196">            piece.setSprite(bQueen);</span>
+        }
+<span class="fc" id="L1198">    }</span>
+
+
+    /**
+     * Checks if player king is in check - if true then highlight square 
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     */
+    public void Check(ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray) {
+
+        // get all cpu possible attacks 
+<span class="fc" id="L1209">        ArrayList&lt;int[]&gt; allBlackAttack = Pieces.getAllAttackPositions(cpuArray, playerArray);</span>
+
+        // highlights checked player king
+<span class="fc bfc" id="L1212" title="All 2 branches covered.">        if(Board.checkForKingCheck(allBlackAttack, playerArray, cpuArray)) {</span>
+<span class="fc" id="L1213">            Board.checkHighlight(this, playerArray);</span>
+            // System.out.println(&quot;White King is In Check&quot;);
+            
+            // test for checkmate 
+<span class="pc bpc" id="L1217" title="1 of 2 branches missed.">            if (!checkForCheckmate(cpuPiece, playerArray, cpuArray)) {</span>
+<span class="fc" id="L1218">                playerChecked = true;</span>
+<span class="fc" id="L1219">                text.playerKingCheck(this, playerArray, cpuArray, playerPiece);</span>
+            }
+            
+        }
+<span class="fc" id="L1223">        return;</span>
+    }
+
+    /**
+     * checks if player is in checkmate
+     * @param cpuPiece piece object that cpu has selected
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     * @return boolean, true or false
+     */
+    public boolean checkForCheckmate(Pieces cpuPiece, ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray) {
+
+        // all of white defended pieces 
+<span class="fc" id="L1236">        ArrayList&lt;int[]&gt; allWhiteDefended = Pieces.getAllDefendedPositions(playerArray, cpuArray);</span>
+
+        // all possible taking moves - too get out of check
+<span class="fc" id="L1239">        ArrayList&lt;int[]&gt; taking = new ArrayList&lt;int[]&gt;();</span>
+
+        // check if it can attack, checking piece 
+<span class="fc" id="L1242">        ArrayList&lt;int[]&gt; allBlackPieceAttack = Pieces.getAllAttackPositions(playerArray, cpuArray);</span>
+
+<span class="fc" id="L1244">        int checkX = cpuPiece.getX() / 48;</span>
+<span class="fc" id="L1245">        int checkY = cpuPiece.getY() / 48;</span>
+
+<span class="fc" id="L1247">        ArrayList&lt;Pieces&gt; blackOutOfCheckAttack = new ArrayList&lt;Pieces&gt;();</span>
+        
+        // check if piece can be taken 
+<span class="fc bfc" id="L1250" title="All 2 branches covered.">        for (int[] attack : allBlackPieceAttack) {</span>
+<span class="fc bfc" id="L1251" title="All 2 branches covered.">            if (Board.checkAttackingPosition(attack[0], attack[1], cpuArray)) {</span>
+    
+                // check black pieces for an attack to get out of check
+<span class="fc bfc" id="L1254" title="All 2 branches covered.">                for (Pieces b : playerArray) {</span>
+<span class="fc" id="L1255">                    taking = b.getAttackingPositions(playerArray, cpuArray);</span>
+    
+<span class="fc bfc" id="L1257" title="All 2 branches covered.">                    for (int[] a : taking) {</span>
+    
+<span class="fc bfc" id="L1259" title="All 4 branches covered.">                        if (a[0] == checkX &amp;&amp; a[1] == checkY) {</span>
+<span class="fc" id="L1260">                            blackOutOfCheckAttack.add(b);</span>
+                        }
+<span class="fc" id="L1262">                    }</span>
+<span class="fc" id="L1263">                }</span>
+            }
+<span class="fc" id="L1265">        }</span>
+
+<span class="fc" id="L1267">        ArrayList&lt;int[]&gt; possibleattacks = new ArrayList&lt;int[]&gt;();</span>
+        // loop through all possible out of check attacks
+<span class="fc bfc" id="L1269" title="All 2 branches covered.">        for (Pieces Piece : blackOutOfCheckAttack) {</span>
+            // Pieces possible attacks
+<span class="fc" id="L1271">            possibleattacks = Piece.getAttackingPositions(playerArray, cpuArray);</span>
+
+            // defended positions are removed from possible black moves, that put king in check
+<span class="fc" id="L1274">            ArrayList&lt;int[]&gt; attackList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L1275">            attackList.add(new int[] {checkX, checkY});</span>
+<span class="fc" id="L1276">            ArrayList&lt;int[]&gt; removedAttack = Board.removeCommonPositions(attackList, allWhiteDefended);</span>
+    
+<span class="pc bpc" id="L1278" title="2 of 4 branches missed.">            if (blackOutOfCheckAttack != null &amp;&amp; !removedAttack.isEmpty()) {</span>
+<span class="nc" id="L1279">                return false;</span>
+            }
+<span class="fc" id="L1281">        }</span>
+    
+        // block check
+<span class="pc bpc" id="L1284" title="1 of 2 branches missed.">        if (!Board.whiteBlockCheck(this, cpuArray, playerArray)) {</span>
+
+<span class="nc" id="L1286">            Board.checkHighlight(this, playerArray);</span>
+            // System.out.println(&quot;CHECKMATE!!!&quot;);
+            // System.out.println(&quot;CPU WINS&quot;);
+<span class="nc" id="L1289">            text.cpuCheckmateWinner(this);</span>
+<span class="nc" id="L1290">            cpuTimer.displayOther(this, 48);</span>
+<span class="nc" id="L1291">            Board.highlightContributionPieces(this, cpuArray, playerArray);</span>
+
+<span class="nc" id="L1293">            return true;</span>
+        }
+<span class="fc" id="L1295">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

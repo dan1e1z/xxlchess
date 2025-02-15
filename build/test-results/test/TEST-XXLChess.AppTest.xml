@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="XXLChess.AppTest" tests="3" skipped="1" failures="0" errors="0" timestamp="2025-02-15T06:28:35" hostname="Daniel" time="27.48">
+  <properties/>
+  <testcase name="cpuCheckAlgorithmTest()" classname="XXLChess.AppTest" time="1.899"/>
+  <testcase name="testKeyPressed()" classname="XXLChess.AppTest" time="1.419"/>
+  <testcase name="cpuMovementTest()" classname="XXLChess.AppTest" time="24.154">
+    <skipped/>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

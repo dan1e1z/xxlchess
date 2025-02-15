@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Sidebar.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">xxlchess_scaffold</a> &gt; <a href="index.source.html" class="el_package">XXLChess</a> &gt; <span class="el_source">Sidebar.java</span></div><h1>Sidebar.java</h1><pre class="source lang-java linenums">package XXLChess;                    
+
+//import org.reflections.Reflections;
+//import org.reflections.scanners.Scanners;
+import processing.core.PApplet;
+import processing.core.PImage;
+import processing.data.JSONObject;
+import processing.data.JSONArray;
+import processing.core.PFont;
+import processing.event.MouseEvent;
+import processing.core.PGraphics;
+import processing.core.PConstants;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.io.*;
+import java.util.*;
+
+
+/**
+ * This class represents a sidebar in a chess game.
+ * It is responsible for displaying information about the game,
+ *  such as the current player, the time remaining. 
+ * This includes the text for messenges.
+ */
+public class Sidebar {
+    
+    /**
+     * total time, which has been defined in cconfig.json
+     */
+    private int totalTime;
+
+    /**
+     * number of frames which has occured during a players turn
+     */
+<span class="fc" id="L36">    private int frameCount = 0;</span>
+
+    /**
+     * time increment after move ends, defined in config.json
+     */
+    private int timeIncrement;
+
+    /**
+     * formted string version of time for player
+     */
+<span class="fc" id="L46">    private String formattedTimeString = &quot;&quot;;</span>
+
+
+    /**
+     * boolean flag, wheather or not a player has won
+     */
+<span class="fc" id="L52">    private boolean winner = false;</span>
+
+    /**
+     * boolean flag, wheather or not a players king is defended
+    */
+<span class="fc" id="L57">    private boolean defendKing = true;</span>
+
+
+    /**
+     * constructor for sidebar, gray rectangle in GUI
+     * @param totalTime total time on clock
+     * @param timeIncrement time increment
+     */
+<span class="fc" id="L65">    public Sidebar(int totalTime, int timeIncrement) {</span>
+        
+        // player and cpu time
+<span class="fc" id="L68">        this.totalTime = totalTime;</span>
+
+        // player and cpu time increment
+<span class="fc" id="L71">        this.timeIncrement = timeIncrement;</span>
+
+        // count number of total frames
+<span class="fc" id="L74">        this.frameCount = frameCount;</span>
+
+        // formated string for sidebar text display
+<span class="fc" id="L77">        this.formattedTimeString = formattedTimeString;</span>
+
+        // winner 
+<span class="fc" id="L80">        this.winner = winner;</span>
+
+        // defend King
+<span class="fc" id="L83">        this.defendKing = defendKing;</span>
+<span class="fc" id="L84">    }</span>
+
+    /**
+     * get Winner - if game has ended
+     * @return boolean, true or false 
+     */
+    public boolean getWinner() {
+<span class="fc" id="L91">        return this.winner;</span>
+    }
+
+    /**
+     * set winner to false, if game has reset
+     */
+    public void setWinner() {
+<span class="fc" id="L98">        this.winner = false;</span>
+<span class="fc" id="L99">    }</span>
+
+    /**
+     * get DenfedKing - if trying to make an illegal move
+     * @return boolean, true of false
+     */
+    public boolean getDefendKing() {
+<span class="fc" id="L106">        return this.defendKing;</span>
+    }
+
+    /**
+     * set DefendKing to true
+     */
+    public void setDefendKing() {
+<span class="fc" id="L113">        this.defendKing = true;</span>
+<span class="fc" id="L114">    }</span>
+
+    /**
+     * player Timer - counts down and adds to sidebar
+     * @param app reference to the Processing application object
+     */
+    public void playerTimer(PApplet app) {
+
+        // add one to countdownCount - updated each frame 
+<span class="fc" id="L123">        this.frameCount++;</span>
+
+        // frameCount - timer time
+<span class="fc" id="L126">        int totalSeconds = this.totalTime - (this.frameCount / 60);</span>
+
+        // check if player has run out of time
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        if (totalSeconds &lt; 0) {</span>
+<span class="fc" id="L130">            cpuTimeWinner(app);</span>
+<span class="fc" id="L131">            return;</span>
+        }
+
+<span class="fc" id="L134">        int minutes = totalSeconds / 60;</span>
+<span class="fc" id="L135">        int seconds = totalSeconds % 60;</span>
+
+<span class="fc" id="L137">        String formattedTime = String.format(&quot;%d:%02d&quot;, minutes, seconds);</span>
+    
+<span class="fc" id="L139">        this.formattedTimeString = formattedTime;</span>
+
+<span class="fc" id="L141">        app.fill(204,204,204,255);</span>
+<span class="fc" id="L142">        app.rect(672, 0, 120, 672);</span>
+<span class="fc" id="L143">        app.fill(0);</span>
+<span class="fc" id="L144">        app.textSize(18);</span>
+
+<span class="fc" id="L146">        app.text(this.formattedTimeString, 680 , 624);</span>
+
+<span class="fc" id="L148">    }</span>
+
+    /**
+     * cpu timer - counts down and adds to sidebar
+     * @param app reference to the Processing application object
+     */
+    public void cpuTimer(PApplet app) {
+
+        // add one to countdownCount - updated each frame 
+<span class="fc" id="L157">        this.frameCount++;</span>
+
+        // frameCount - timer time
+<span class="fc" id="L160">        int totalSeconds = this.totalTime - (this.frameCount / 60);</span>
+
+        // check if player has run out of time
+<span class="fc bfc" id="L163" title="All 2 branches covered.">        if (totalSeconds &lt; 0) {</span>
+<span class="fc" id="L164">            playerTimeWinner(app);</span>
+<span class="fc" id="L165">            this.winner = true;</span>
+<span class="fc" id="L166">            return;</span>
+        }
+
+<span class="fc" id="L169">        int minutes = totalSeconds / 60;</span>
+<span class="fc" id="L170">        int seconds = totalSeconds % 60;</span>
+
+<span class="fc" id="L172">        String formattedTime = String.format(&quot;%d:%02d&quot;, minutes, seconds);</span>
+<span class="fc" id="L173">        this.formattedTimeString = formattedTime;</span>
+
+<span class="fc" id="L175">        app.fill(204,204,204,255);</span>
+<span class="fc" id="L176">        app.rect(672, 0, 120, 672);</span>
+<span class="fc" id="L177">        app.fill(0);</span>
+<span class="fc" id="L178">        app.textSize(18);</span>
+
+<span class="fc" id="L180">        app.text(this.formattedTimeString, 680 , 48);</span>
+<span class="fc" id="L181">    }</span>
+
+    /**
+     * displays waiting players timer
+     * @param app reference to the Processing application object
+     * @param y which end of the sibar time is being diplayed
+     */
+    public void displayOther(PApplet app, int y) {
+
+<span class="fc" id="L190">        app.fill(0);</span>
+<span class="fc" id="L191">        app.textSize(18);</span>
+<span class="fc" id="L192">        app.text(this.formattedTimeString, 680 , y);</span>
+<span class="fc" id="L193">    }</span>
+
+    /**
+     * Display player won by time
+     * @param app reference to the Processing application object
+     */
+    public void  playerTimeWinner(PApplet app) {
+<span class="fc" id="L200">        this.winner = true;</span>
+<span class="fc" id="L201">        app.fill(0);</span>
+<span class="fc" id="L202">        app.textSize(18);</span>
+<span class="fc" id="L203">        app.text(&quot;You won on \ntime&quot;, 680 , 280);</span>
+<span class="fc" id="L204">        app.text(&quot;Press 'r' to \nrestart the \ngame&quot;, 680 , 350);</span>
+<span class="fc" id="L205">    }</span>
+
+    /**
+     * Displaycpu won by time
+     * @param app reference to the Processing application object
+     */
+    public void cpuTimeWinner(PApplet app) {
+<span class="fc" id="L212">        this.winner = true;</span>
+<span class="fc" id="L213">        app.fill(0);</span>
+<span class="fc" id="L214">        app.textSize(18);</span>
+<span class="fc" id="L215">        app.text(&quot;You lost on \ntime&quot;, 680 , 280);</span>
+<span class="fc" id="L216">        app.text(&quot;Press 'r' to \nrestart the \ngame&quot;, 680 , 350);</span>
+<span class="fc" id="L217">    }</span>
+
+    /**
+     * Display player won by checkmate
+     * @param app reference to the Processing application object
+     */
+    public void  playerCheckmateWinner(PApplet app) {
+<span class="fc" id="L224">        this.winner = true;</span>
+<span class="fc" id="L225">        app.fill(204,204,204,255);</span>
+<span class="fc" id="L226">        app.rect(672, 0, 120, 672);</span>
+<span class="fc" id="L227">        app.fill(0);</span>
+<span class="fc" id="L228">        app.textSize(18);</span>
+<span class="fc" id="L229">        app.text(&quot;You won by \ncheckmate&quot;, 680 , 280);</span>
+<span class="fc" id="L230">        app.text(&quot;Press 'r' to \nrestart the \ngame&quot;, 680 , 350);</span>
+<span class="fc" id="L231">    }</span>
+
+    /**
+     * Display player won by checkmate
+     * @param app reference to the Processing application object
+     */
+    public void cpuCheckmateWinner(PApplet app) {
+<span class="fc" id="L238">        this.winner = true;</span>
+<span class="fc" id="L239">        app.fill(0);</span>
+<span class="fc" id="L240">        app.textSize(18);</span>
+<span class="fc" id="L241">        app.text(&quot;You lost by \ncheckmate&quot;, 680 , 280);</span>
+<span class="fc" id="L242">        app.text(&quot;Press 'r' to \nrestart the \ngame&quot;, 680 , 350);</span>
+<span class="fc" id="L243">    }</span>
+
+
+    /**
+     * Display draw
+     * @param app reference to the Processing application object
+     */
+    public void drawWinner(PApplet app) {
+<span class="fc" id="L251">        this.winner = true;</span>
+<span class="fc" id="L252">        app.fill(0);</span>
+<span class="fc" id="L253">        app.textSize(18);</span>
+<span class="fc" id="L254">        app.text(&quot;Stalemate – \ndraw&quot;, 680 , 280);</span>
+<span class="fc" id="L255">        app.text(&quot;Press 'r' to \nrestart the \ngame&quot;, 680 , 350);</span>
+
+<span class="fc" id="L257">    }</span>
+
+    /**
+     * Display cpu king is in check
+     * @param app reference to the Processing application object
+     */
+    public void cpuKingCheck(PApplet app) {
+<span class="fc" id="L264">        app.fill(0);</span>
+<span class="fc" id="L265">        app.textSize(18);</span>
+<span class="fc" id="L266">        app.text(&quot;CHECK!&quot;, 680 , 336);</span>
+<span class="fc" id="L267">    }</span>
+
+    /**
+     * Display cpu king is in check
+     * @param app reference to the Processing application object
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     * @param playerPiece piece object of player
+     */
+    public void playerKingCheck(PApplet app, ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray, Pieces playerPiece) {
+<span class="fc" id="L277">        app.fill(0);</span>
+<span class="fc" id="L278">        app.textSize(18);</span>
+<span class="fc" id="L279">        app.text(&quot;CHECK!&quot;, 680 , 336);</span>
+<span class="fc" id="L280">        Pieces king = Pieces.getKing(playerArray, cpuArray);</span>
+        
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">        if (playerPiece != king) {</span>
+<span class="fc" id="L283">            app.fill(201,0,0,255);</span>
+        }
+<span class="nc" id="L285">        else {app.fill(109,137,76,255);} // green</span>
+<span class="fc" id="L286">        app.rect(king.getX(), king.getY(), 48, 48);    </span>
+<span class="fc" id="L287">    }</span>
+
+
+    /**
+     * player has resigned 
+     * @param app reference to the Processing application object
+     */
+    public void resign(PApplet app) {
+<span class="fc" id="L295">        this.winner = true;</span>
+<span class="fc" id="L296">        app.fill(0);</span>
+<span class="fc" id="L297">        app.textSize(18);</span>
+<span class="fc" id="L298">        app.text(&quot;You \nresigned&quot;, 680, 280);</span>
+<span class="fc" id="L299">        app.text(&quot;Press 'r' to \nrestart the \ngame&quot;, 680 , 350);</span>
+<span class="fc" id="L300">    }</span>
+
+    /**
+     * add time increment 
+     */
+    public void addTimeIncrement() {
+<span class="fc" id="L306">        this.totalTime += this.timeIncrement;</span>
+<span class="fc" id="L307">    }</span>
+
+    /**
+     * Set formated string for cpu
+     */
+    public void setFormattedTimeString() {
+<span class="fc" id="L313">        int totalSeconds = this.totalTime - (this.frameCount / 60);</span>
+
+<span class="fc" id="L315">        int minutes = totalSeconds / 60;</span>
+<span class="fc" id="L316">        int seconds = totalSeconds % 60;</span>
+
+<span class="fc" id="L318">        String formattedTime = String.format(&quot;%d:%02d&quot;, minutes, seconds);</span>
+<span class="fc" id="L319">        this.formattedTimeString = formattedTime;</span>
+<span class="fc" id="L320">    }</span>
+
+    /**
+     * displays : “You must defend your king!” on sidebar, and flashes king
+     * @param app reference to the Processing application object
+     * @param playerArray contains all piece objects of player
+     * @param cpuArray contains all piece objects of cpu
+     */
+    public void defendKing(PApplet app, ArrayList&lt;Pieces&gt; playerArray, ArrayList&lt;Pieces&gt; cpuArray) {
+        
+<span class="fc" id="L330">        Pieces king = Pieces.getKing(playerArray, cpuArray); </span>
+
+<span class="fc" id="L332">        this.frameCount++;</span>
+<span class="fc" id="L333">        int flashIndex = (int)(this.frameCount / 30.0 / 0.5);</span>
+<span class="fc bfc" id="L334" title="All 2 branches covered.">        if (flashIndex % 2 == 0 ) {</span>
+<span class="fc" id="L335">            app.fill(201,0,0,255);</span>
+<span class="fc" id="L336">            app.rect(king.getX(), king.getY(), 48, 48);</span>
+        } else {
+<span class="fc bfc" id="L338" title="All 2 branches covered.">            if ((king.getX() / 48 + king.getY() / 48) % 2 == 0) {</span>
+<span class="fc" id="L339">                app.fill(237,216,179,255);  // white</span>
+            } else {
+<span class="fc" id="L341">                app.fill(175,135,97,255);  // brown</span>
+            }
+            // fills in corresponding color into created rectangle 
+<span class="fc" id="L344">            app.rect(king.getX(), king.getY(), 48, 48);  </span>
+        }
+
+<span class="fc" id="L347">        this.defendKing = false;</span>
+
+<span class="fc" id="L349">        app.fill(0);</span>
+<span class="fc" id="L350">        app.textSize(18);</span>
+<span class="fc" id="L351">        app.text(&quot;You must \ndefend \nyour king!&quot;, 680, 280);</span>
+
+<span class="fc bfc" id="L353" title="All 2 branches covered.">        if (flashIndex &gt;= 6) {</span>
+<span class="fc" id="L354">            this.defendKing = true;</span>
+<span class="fc" id="L355">            this.frameCount = 0;</span>
+
+<span class="fc bfc" id="L357" title="All 2 branches covered.">            if ((king.getX() / 48 + king.getY() / 48) % 2 == 0) {</span>
+<span class="fc" id="L358">                app.fill(237,216,179,255);  // white</span>
+            } else {
+<span class="fc" id="L360">                app.fill(175,135,97,255);  // brown</span>
+            }
+<span class="fc" id="L362">            app.rect(king.getX(), king.getY(), 48, 48);  </span>
+        }
+<span class="fc" id="L364">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>
