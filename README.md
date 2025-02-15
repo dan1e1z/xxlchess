@@ -28,6 +28,7 @@ XXLChess is a Java-based chess game that extends traditional chess with addition
 ## Project Structure
 The project is organized as follows:
 
+``` 
 xxlchess_scaffold/
 ├── .git/                     # Git version control metadata
 ├── .gradle/                  # Gradle cache and configuration
@@ -52,6 +53,7 @@ xxlchess_scaffold/
 ├── config.json               # Configuration file for the game
 ├── level*.txt                # Predefined game levels
 └── README.md                 # This file
+```
 
 ---
 
